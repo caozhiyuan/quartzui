@@ -16,6 +16,11 @@ namespace Host
     {
         public async Task Execute(IJobExecutionContext context)
         {
+
+#if DEBUG
+            Console.WriteLine(context.JobDetail.ToString());          
+#endif
+
             var maxLogCount = 20;//最多保存日志数量
             var warnTime = 60;//接口请求超过多少秒记录警告日志
 
