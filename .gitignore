@@ -38,3 +38,4 @@ nuget.exe
 .dotnet/
 DotNetty.*.nuget.targets
 *.exe
+/QuartzNetUI/Host/File
