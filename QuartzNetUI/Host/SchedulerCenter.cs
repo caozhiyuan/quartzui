@@ -50,9 +50,9 @@ namespace Host
                 }
 
                 //如果不存在sqlite数据库，则创建
-                if (!File.Exists("File/sqliteScheduler.db"))
+                if (!File.Exists("sqliteScheduler.db"))
                 {
-                    using (var connection = new SqliteConnection("Data Source=File/sqliteScheduler.db"))
+                    using (var connection = new SqliteConnection("Data Source=sqliteScheduler.db"))
                     {
                         connection.OpenAsync().Wait();
                         string sql = File.ReadAllTextAsync("tables_sqlite.sql").Result;
@@ -64,7 +64,7 @@ namespace Host
 
                 //MySql存储
                 //DBConnectionManager.Instance.AddConnectionProvider("default", new DbProvider("MySql", "server=192.168.10.133;user id=root;password=pass;persistsecurityinfo=True;database=quartz"));
-                DBConnectionManager.Instance.AddConnectionProvider("default", new DbProvider("SQLite-Microsoft", "Data Source=File/sqliteScheduler.db"));
+                DBConnectionManager.Instance.AddConnectionProvider("default", new DbProvider("SQLite-Microsoft", "Data Source=sqliteScheduler.db"));
                 var serializer = new JsonObjectSerializer();
                 serializer.Initialize();
                 var jobStore = new JobStoreTX

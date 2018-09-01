@@ -11,16 +11,24 @@ namespace Host
     /// </summary>
     public class HttpHelper
     {
+        /// <summary>
+        /// 
+        /// </summary>
         public static readonly HttpHelper Instance;
+
         static HttpHelper()
         {
             Instance = new HttpHelper();
         }
 
-        private HttpClient httpClient;
-        public HttpHelper()
+        private readonly HttpClient _httpClient;
+
+        private HttpHelper()
         {
-            httpClient = new HttpClient();
+            _httpClient = new HttpClient(new HttpClientHandler()
+            {
+                ServerCertificateCustomValidationCallback = (a, b, c, d) => true
+            });
         }
 
         /// <summary>
@@ -33,7 +41,7 @@ namespace Host
         {
             StringContent content = new StringContent(jsonString);
             content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
-            var httpResponseMessage = await httpClient.PostAsync(new Uri(url), content);
+            var httpResponseMessage = await _httpClient.PostAsync(new Uri(url), content);
             return await httpResponseMessage.Content.ReadAsStringAsync();
         }
 
@@ -56,7 +64,7 @@ namespace Host
         /// <returns></returns>
         public async Task<string> GetAsync(string url)
         {
-            var httpResponseMessage = await httpClient.GetAsync(url);
+            var httpResponseMessage = await _httpClient.GetAsync(url);
             return await httpResponseMessage.Content.ReadAsStringAsync();
         }
 
@@ -70,7 +78,7 @@ namespace Host
         {
             StringContent content = new StringContent(jsonString);
             content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
-            var httpResponseMessage = await httpClient.PutAsync(url, content);
+            var httpResponseMessage = await _httpClient.PutAsync(url, content);
             return await httpResponseMessage.Content.ReadAsStringAsync();
         }
 
@@ -93,7 +101,7 @@ namespace Host
         /// <returns></returns>
         public async Task<string> DeleteAsync(string url)
         {
-            var httpResponseMessage = await httpClient.DeleteAsync(url);
+            var httpResponseMessage = await _httpClient.DeleteAsync(url);
             return await httpResponseMessage.Content.ReadAsStringAsync();
         }
     }
