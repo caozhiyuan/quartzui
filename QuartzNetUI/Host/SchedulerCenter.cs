@@ -1,12 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Collections.Specialized;
-using System.Data;
-using System.IO;
-using System.Threading;
 using System.Threading.Tasks;
 using Host.Entity;
-using Microsoft.Data.Sqlite;
 using Quartz;
 using Quartz.Impl;
 using Quartz.Impl.AdoJobStore;
@@ -30,12 +25,14 @@ namespace Host
         /// 任务调度对象
         /// </summary>
         public static readonly SchedulerCenter Instance;
+
         static SchedulerCenter()
         {
             Instance = new SchedulerCenter();
         }
 
         private IScheduler _scheduler;
+
         /// <summary>
         /// 返回任务计划（调度器）
         /// </summary>
@@ -44,44 +41,45 @@ namespace Host
         {
             get
             {
-                if (_scheduler != null)
+                if (_scheduler == null)
                 {
-                    return _scheduler;
-                }
-
-                //如果不存在sqlite数据库，则创建
-                if (!File.Exists("sqliteScheduler.db"))
-                {
-                    using (var connection = new SqliteConnection("Data Source=sqliteScheduler.db"))
+                    lock (this)
                     {
-                        connection.OpenAsync().Wait();
-                        string sql = File.ReadAllTextAsync("tables_sqlite.sql").Result;
-                        var command = new SqliteCommand(sql, connection);
-                        command.ExecuteNonQuery();
-                        connection.Close();
+                        if (_scheduler == null)
+                        {
+                            var scheduler = GetScheduler().GetAwaiter().GetResult();
+                            _scheduler = scheduler;
+                        }
                     }
                 }
-
-                //MySql存储
-                //DBConnectionManager.Instance.AddConnectionProvider("default", new DbProvider("MySql", "server=192.168.10.133;user id=root;password=pass;persistsecurityinfo=True;database=quartz"));
-                DBConnectionManager.Instance.AddConnectionProvider("default", new DbProvider("SQLite-Microsoft", "Data Source=sqliteScheduler.db"));
-                var serializer = new JsonObjectSerializer();
-                serializer.Initialize();
-                var jobStore = new JobStoreTX
-                {
-                    DataSource = "default",
-                    TablePrefix = "QRTZ_",
-                    InstanceId = "AUTO",
-                    //DriverDelegateType = typeof(MySQLDelegate).AssemblyQualifiedName, //MySql存储
-                    DriverDelegateType = typeof(SQLiteDelegate).AssemblyQualifiedName,  //SQLite存储
-                    ObjectSerializer = serializer
-                };
-                DirectSchedulerFactory.Instance.CreateScheduler("benny" + "Scheduler", "AUTO", new DefaultThreadPool(), jobStore);
-                _scheduler = SchedulerRepository.Instance.Lookup("benny" + "Scheduler").Result;
-
-                _scheduler.Start();//默认开始调度器
                 return _scheduler;
             }
+        }
+
+        private async Task<IScheduler> GetScheduler()
+        {
+            //MySql存储
+            DBConnectionManager.Instance.AddConnectionProvider("default",
+                new DbProvider("MySql",
+                    "server=127.0.0.1;user id=root;password=123456;database=quartz"));
+
+            var serializer = new JsonObjectSerializer();
+            serializer.Initialize();
+            var jobStore = new JobStoreTX
+            {
+                DataSource = "default",
+                TablePrefix = "QRTZ_",
+                InstanceId = "AUTO",
+                DriverDelegateType = typeof(MySQLDelegate).AssemblyQualifiedName, //MySql存储
+                ObjectSerializer = serializer,
+                Clustered = true
+            };
+            DirectSchedulerFactory.Instance.CreateScheduler("SystemScheduler", "AUTO", new DefaultThreadPool(), jobStore);
+            var scheduler = await SchedulerRepository.Instance.Lookup("SystemScheduler");
+
+            await scheduler.Start(); //默认开始调度器
+
+            return scheduler;
         }
 
         /// <summary>
@@ -162,7 +160,7 @@ namespace Host
                     Msg = "停止任务计划成功！"
                 };
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 result = new BaseResult
                 {
@@ -238,8 +236,7 @@ namespace Host
         /// <summary>
         /// 立即执行
         /// </summary>
-        /// <param name="jobGroup"></param>
-        /// <param name="jobName"></param>
+        /// <param name="jobKey"></param>
         /// <returns></returns>
         public async Task<bool> TriggerJobAsync(JobKey jobKey)
         {
@@ -278,7 +275,7 @@ namespace Host
                 var triggersList = await Scheduler.GetTriggersOfJob(jobKey);
                 var triggers = triggersList.AsEnumerable().FirstOrDefault();
 
-                var interval = string.Empty;
+                string interval;
                 if (triggers is SimpleTriggerImpl)
                     interval = (triggers as SimpleTriggerImpl)?.RepeatInterval.ToString();
                 else
@@ -301,7 +298,6 @@ namespace Host
                             EndTime = triggers.EndTimeUtc?.LocalDateTime,
                             Description = jobDetail.Description
                         });
-                        continue;
                     }
                 }
             }
@@ -332,6 +328,9 @@ namespace Host
                 {
                     if (jobInfo.GroupName == jobKey.Group)
                     {
+                        if (triggers == null)
+                            continue;
+
                         jobInfo.JobInfoList.Add(new JobBriefInfo()
                         {
                             Name = jobKey.Name,
@@ -340,7 +339,6 @@ namespace Host
                             PreviousFireTime = triggers.GetPreviousFireTimeUtc()?.LocalDateTime,
                             NextFireTime = triggers.GetNextFireTimeUtc()?.LocalDateTime,
                         });
-                        continue;
                     }
                 }
             }
@@ -392,7 +390,7 @@ namespace Host
                .StartAt(entity.BeginTime)//开始时间
                .EndAt(entity.EndTime)//结束数据
                .WithSimpleSchedule(x => x
-                   .WithIntervalInSeconds(entity.IntervalSecond.Value)//执行时间间隔，单位秒
+                   .WithIntervalInSeconds(entity.IntervalSecond ?? 0)//执行时间间隔，单位秒
                    .WithRepeatCount(entity.RunTimes.Value))//执行次数、默认从0开始
                    .ForJob(entity.JobName, entity.JobGroup)//作业名称
                .Build();
@@ -404,7 +402,7 @@ namespace Host
                .StartAt(entity.BeginTime)//开始时间
                .EndAt(entity.EndTime)//结束数据
                .WithSimpleSchedule(x => x
-                   .WithIntervalInSeconds(entity.IntervalSecond.Value)//执行时间间隔，单位秒
+                   .WithIntervalInSeconds(entity.IntervalSecond ?? 0)//执行时间间隔，单位秒
                    .RepeatForever())//无限循环
                    .ForJob(entity.JobName, entity.JobGroup)//作业名称
                .Build();
