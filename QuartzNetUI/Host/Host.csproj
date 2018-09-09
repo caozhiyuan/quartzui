@@ -40,8 +40,6 @@
     <PackageReference Include="Microsoft.AspNetCore.All" Version="2.0.5" />
     <PackageReference Include="Microsoft.Data.SQLite" Version="2.0.0" />
     <PackageReference Include="MySql.Data" Version="6.10.7" />
-    <PackageReference Include="Quartz" Version="3.0.4" />
-    <PackageReference Include="Quartz.Serialization.Json" Version="3.0.4" />
     <PackageReference Include="Serilog.Extensions.Logging" Version="2.0.2" />
     <PackageReference Include="Serilog.Sinks.Async" Version="1.2.0" />
     <PackageReference Include="Serilog.Sinks.RollingFile" Version="3.3.0" />
@@ -50,6 +48,10 @@
 
   <ItemGroup>
     <DotNetCliToolReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Tools" Version="2.0.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Quartz\Quartz.csproj" />
   </ItemGroup>
 
   <ItemGroup>
