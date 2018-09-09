@@ -63,19 +63,23 @@ namespace Host
                 new DbProvider("MySql",
                     "server=127.0.0.1;user id=root;password=123456;database=quartz"));
 
+            SimpleInstanceIdGenerator idGenerator = new SimpleInstanceIdGenerator();
+            var instanceId = await idGenerator.GenerateInstanceId();
+            var instancename =  "SystemScheduler";
             var serializer = new JsonObjectSerializer();
             serializer.Initialize();
             var jobStore = new JobStoreTX
             {
                 DataSource = "default",
                 TablePrefix = "QRTZ_",
-                InstanceId = "AUTO",
+                InstanceId = instanceId,
+                InstanceName = instancename,
                 DriverDelegateType = typeof(MySQLDelegate).AssemblyQualifiedName, //MySql存储
                 ObjectSerializer = serializer,
                 Clustered = true
             };
-            DirectSchedulerFactory.Instance.CreateScheduler("SystemScheduler", "AUTO", new DefaultThreadPool(), jobStore);
-            var scheduler = await SchedulerRepository.Instance.Lookup("SystemScheduler");
+            DirectSchedulerFactory.Instance.CreateScheduler(instancename, instanceId, new DefaultThreadPool(), jobStore);
+            var scheduler = await SchedulerRepository.Instance.Lookup(instancename);
 
             await scheduler.Start(); //默认开始调度器
 
